@@ -1,0 +1,74 @@
+name: Build Windows EXE
+
+# Runs automatically whenever you push code, AND can be triggered manually
+# from the "Actions" tab in GitHub with the "Run workflow" button.
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    # This is a real, temporary Windows machine provided by GitHub.
+    # It does not touch your PC at all.
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install app dependencies
+        # No PyTorch install here on purpose -- the app runs on ONNX Runtime,
+        # not PyTorch, which avoids the c10.dll crash seen on the production PC.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build CanFallingDetector.exe
+        working-directory: installer
+        run: |
+          pyinstaller `
+            --name CanFallingDetector `
+            --noconfirm `
+            --windowed `
+            --add-data "../models;models" `
+            --collect-all onnxruntime `
+            --collect-all cv2 `
+            --collect-all pymodbus `
+            --collect-all serial `
+            "../app/main.py"
+
+      - name: Remove stale bundled MSVC runtime DLLs (use system-installed versions instead)
+        # PyQt5's wheel ships its own private, older copies of the standard
+        # Visual C++ runtime DLLs (msvcp140.dll, vcruntime140.dll, etc.) and
+        # PyInstaller bundles them by default. These can shadow/conflict with
+        # the versions other native extensions (e.g. onnxruntime's pybind11
+        # module) expect to find, causing DLL initialization failures on some
+        # Windows PCs even when the correct redistributable is installed
+        # system-wide. Removing the bundled copies makes Windows fall back to
+        # the system-installed runtime, which resolves that class of conflict.
+        working-directory: installer/dist/CanFallingDetector
+        run: |
+          $staleDlls = @("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll", "concrt140.dll")
+          foreach ($dll in $staleDlls) {
+            $found = Get-ChildItem -Recurse -Filter $dll -ErrorAction SilentlyContinue
+            foreach ($f in $found) {
+              Write-Host "Removing bundled $($f.FullName)"
+              Remove-Item $f.FullName -Force
+            }
+          }
+
+      - name: Upload built application as a downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CanFallingDetector-Windows
+          path: installer/dist/CanFallingDetector/
+          retention-days: 30
