@@ -1,0 +1,41 @@
+# requirements-rpi.txt
+# ---------------------
+# Linux/ARM64 dependencies for running CanFallingDetector on a Raspberry Pi
+# 5 (Raspberry Pi OS, 64-bit / Bookworm or newer). Use this file INSTEAD OF
+# requirements.txt on the Pi -- do not install both.
+#
+# See scripts/setup_raspberry_pi.sh for the recommended install method
+# (PyQt5 and OpenCV come from apt, everything else from pip in a venv
+# built with --system-site-packages). If you run `pip install -r
+# requirements-rpi.txt` directly, pip will attempt to build PyQt5 from
+# source on ARM if no wheel is available, which can take a very long time
+# on a Pi -- the setup script avoids this entirely.
+
+# --- Only needed if NOT installing python3-pyqt5 / python3-opencv via apt ---
+opencv-python-headless>=4.9.0   # "-headless": no bundled Qt plugins, so it
+                                 # can't fight with PyQt5's own Qt build for
+                                 # the platform plugin on Linux ("could not
+                                 # load the Qt platform plugin xcb" crash).
+                                 # Never install plain opencv-python
+                                 # alongside PyQt5 on Linux.
+PyQt5>=5.15.9
+
+numpy>=1.26.0
+
+# Plain onnxruntime -- onnxruntime-directml (used on Windows) is a DirectX
+# 12 / Windows-only package and will not install on Linux/ARM at all.
+# detector.py already handles this with no code changes needed: it only
+# tries DmlExecutionProvider if the package that provides it is present,
+# and falls back to CPUExecutionProvider otherwise -- which is what plain
+# onnxruntime gives you here. Inference runs on CPU only on the Pi (no
+# GPU execution provider is used); benchmark your actual best.onnx model
+# against your line speed before relying on this in production.
+onnxruntime>=1.17.0
+
+pymodbus>=3.6.0
+pyserial>=3.5
+
+# NOTE: torch/ultralytics are still never required to RUN the app on the
+# Pi, for the same reason as on Windows -- see requirements.txt and
+# detector.py's module docstring. Only needed on a dev machine to
+# re-export best.pt -> best.onnx after retraining.

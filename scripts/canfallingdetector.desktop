@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=CanFallingDetector
+Comment=Automated can-falling detection and PLC-controlled reject system
+Exec=/home/pi/CanFallingDetector/.venv/bin/python3 /home/pi/CanFallingDetector/app/main.py
+Path=/home/pi/CanFallingDetector
+Terminal=false
+X-GNOME-Autostart-enabled=true

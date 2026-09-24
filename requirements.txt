@@ -1,0 +1,36 @@
+opencv-python>=4.9.0
+PyQt5>=5.15.9
+numpy>=1.26.0
+onnxruntime-directml>=1.17.0
+pymodbus>=3.6.0
+pyserial>=3.5
+
+# NOTE: torch is NOT required to run the app anymore.
+#
+# The app runs inference through ONNX Runtime, not PyTorch. This was
+# changed after repeated "WinError 1114: c10.dll" crashes on a production
+# PC -- a known torch/Windows DLL issue with no reliable fix found on that
+# hardware. ONNX Runtime is lighter and has none of those native-DLL
+# dependencies.
+#
+# `onnxruntime-directml` (not plain `onnxruntime`) is used specifically so
+# the app can use GPU acceleration via DirectML on machines with a capable
+# GPU (e.g. the RTX 3050 production PC) -- DirectML works with any
+# DirectX 12 GPU on Windows and needs no separate CUDA/cuDNN install,
+# unlike PyTorch+CUDA. It still imports as `onnxruntime` in code, and
+# automatically falls back to CPU on machines without a DX12 GPU (see
+# app/detector.py). Do NOT install plain `onnxruntime` alongside this --
+# they conflict on the same module name.
+#
+# app/detector.py never imports torch or ultralytics -- the running app
+# only needs the packages listed above.
+#
+# pymodbus is used only by app/plc_modbus.py, for real Modbus TCP
+# communication with the Schneider M241 PLC. It is pure Python (no native
+# DLLs), so it does not carry the same DLL-crash risk as torch did.
+#
+# `ultralytics` (with torch) is only needed separately, one time, on a dev
+# machine, to re-export an updated best.pt into best.onnx after retraining:
+#   pip install ultralytics torch --index-url https://download.pytorch.org/whl/cpu
+#   python -c "from ultralytics import YOLO; YOLO('best.pt').export(format='onnx', imgsz=640, opset=12, simplify=True)"
+

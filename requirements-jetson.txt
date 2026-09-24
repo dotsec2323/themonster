@@ -1,0 +1,52 @@
+# requirements-jetson.txt
+# -------------------------
+# Dependencies for running CanFallingDetector on an NVIDIA Jetson Orin
+# Nano (JetPack / Ubuntu, ARM64) with real GPU-accelerated inference via
+# TensorRT/CUDA. Use this file INSTEAD OF requirements.txt or
+# requirements-rpi.txt on the Jetson.
+#
+# See scripts/setup_jetson.sh and JETSON.md for the full install process.
+# The short version of why this file looks the way it does:
+
+# --- PyQt5 / OpenCV ---
+# JetPack images typically ship OpenCV pre-installed system-wide (and it's
+# often built WITH CUDA support by NVIDIA's own image). Do not pip-install
+# opencv-python or opencv-python-headless over it -- that would replace a
+# CUDA-enabled build with a plain CPU-only one. Install PyQt5 via apt
+# instead of pip for the same reason it's done that way on the Pi (no
+# reliable prebuilt ARM64 wheel, pip falls back to a slow/fragile source
+# build): `sudo apt install python3-pyqt5`. scripts/setup_jetson.sh does
+# both of these checks for you.
+
+numpy>=1.26.0
+pymodbus>=3.6.0
+pyserial>=3.5
+
+# --- onnxruntime-gpu: THIS IS THE PART THAT NEEDS MANUAL ATTENTION ---
+# There is no onnxruntime-gpu wheel on standard PyPI for Jetson (aarch64 +
+# CUDA + TensorRT) -- `pip install onnxruntime-gpu` on a Jetson will either
+# fail outright or silently install a wheel with no working GPU kernels for
+# this board (get_available_providers() can list CUDAExecutionProvider/
+# TensorrtExecutionProvider even when the wheel wasn't built for this GPU's
+# architecture -- only a real inference run proves it works, which is why
+# detector.py always reports the provider actually active in the loaded
+# session, not just what was requested).
+#
+# You MUST download a wheel matched to your exact JetPack version, Python
+# version, and CUDA version from one of:
+#   - Jetson Zoo (eLinux.org)            -- community-maintained, most
+#     JetPack versions: https://elinux.org/Jetson_Zoo#ONNX_Runtime
+#   - Ultralytics' hosted Jetson wheels  -- for recent JetPack/CUDA13:
+#     https://docs.ultralytics.com/guides/nvidia-jetson/
+# Check your JetPack/L4T version first with: `cat /etc/nv_tegra_release`
+# scripts/setup_jetson.sh prints your detected version and the matching
+# page to check -- it does not hardcode a wheel URL, since the correct one
+# changes with every JetPack release.
+#
+# After installing the matched wheel, verify with:
+#   python3 -c "import onnxruntime as ort; print(ort.get_available_providers())"
+# You should see TensorrtExecutionProvider and/or CUDAExecutionProvider
+# listed -- then confirm it's REALLY running on GPU by loading a model in
+# the app and checking the Diagnostics tab / Image Test tab, which reports
+# detector.active_device_label() (e.g. "GPU (TensorRT)"), not just that the
+# provider is present.

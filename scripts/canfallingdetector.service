@@ -1,0 +1,38 @@
+# canfallingdetector.service
+# ----------------------------
+# OPTIONAL alternative to scripts/canfallingdetector.desktop, for
+# deployments that want systemd to supervise the app (auto-restart on
+# crash, `journalctl` logging, start/stop via `systemctl`). Requires
+# Raspberry Pi OS Desktop with auto-login enabled, since this still needs
+# an active graphical (X11) session to show the window on the attached
+# monitor.
+#
+# Install:
+#   sudo cp scripts/canfallingdetector.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now canfallingdetector.service
+#
+# Before installing, edit the User=, WorkingDirectory=, and ExecStart=
+# paths below if the project isn't at /home/pi/CanFallingDetector, or the
+# login user isn't "pi".
+#
+# View logs:
+#   journalctl -u canfallingdetector.service -f
+
+[Unit]
+Description=CanFallingDetector - Automated Can-Falling Detection & PLC Reject System
+After=graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/CanFallingDetector
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+ExecStart=/home/pi/CanFallingDetector/.venv/bin/python3 /home/pi/CanFallingDetector/app/main.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target
